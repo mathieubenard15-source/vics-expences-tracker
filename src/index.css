@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pink-pastel: #FFE4E1;
+  --color-pink-light: #FFC0CB;
+  --color-pink-candy: #FF69B4;
+  --color-pink-hot: #FF1493;
+  --color-pink-deep: #C71585;
+  --color-bg-card: rgba(255, 255, 255, 0.7);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Nunito', 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100dvh;
+  background: linear-gradient(135deg, #FFE4E1 0%, #FFC0CB 50%, #FFB6C1 100%);
+  background-attachment: fixed;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bounce-in {
+  0% { transform: translateY(-10px); opacity: 0; }
+  60% { transform: translateY(3px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 105, 180, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(255, 105, 180, 0.6); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.animate-pop-in {
+  animation: pop-in 0.3s ease-out;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.4s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #FFB6C1;
+  border-radius: 3px;
+}
+
+/* Number input sans spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
