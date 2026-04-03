@@ -7,6 +7,7 @@ export interface Expense {
 }
 
 export type CategoryId =
+  | 'courses'
   | 'restau'
   | 'sport'
   | 'sante'

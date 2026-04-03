@@ -3,6 +3,7 @@ import type { Category } from './types'
 export const TOTAL_BUDGET = 1508
 
 export const CATEGORIES: Category[] = [
+  { id: 'courses', label: 'Alimentation/Courses', emoji: '🛒' },
   { id: 'restau', label: 'Restau', emoji: '🍽️' },
   { id: 'sport', label: 'Sport', emoji: '💪' },
   { id: 'sante', label: 'Santé', emoji: '🏥' },
