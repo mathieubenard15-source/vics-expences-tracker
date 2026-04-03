@@ -1,27 +1,31 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { CategoryId } from '../types'
-
-const STORAGE_KEY = 'vics-category-limits'
+import { supabase } from '../lib/supabase'
 
 type Limits = Partial<Record<CategoryId, number>>
 
-function loadLimits(): Limits {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY)
-    return data ? JSON.parse(data) : { sport: 250 }
-  } catch {
-    return { sport: 250 }
-  }
-}
-
-function saveLimits(limits: Limits): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(limits))
-}
-
 export function useCategoryLimits() {
-  const [limits, setLimits] = useState<Limits>(loadLimits)
+  const [limits, setLimits] = useState<Limits>({})
 
-  const setLimit = useCallback((categoryId: CategoryId, value: number | null) => {
+  useEffect(() => {
+    supabase
+      .from('category_limits')
+      .select('*')
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error loading limits:', error)
+          return
+        }
+        const map: Limits = {}
+        for (const row of data || []) {
+          map[row.category as CategoryId] = row.amount
+        }
+        setLimits(map)
+      })
+  }, [])
+
+  const setLimit = useCallback(async (categoryId: CategoryId, value: number | null) => {
+    // Optimistic update
     setLimits(prev => {
       const next = { ...prev }
       if (value === null || value <= 0) {
@@ -29,9 +33,14 @@ export function useCategoryLimits() {
       } else {
         next[categoryId] = value
       }
-      saveLimits(next)
       return next
     })
+
+    if (value === null || value <= 0) {
+      await supabase.from('category_limits').delete().eq('category', categoryId)
+    } else {
+      await supabase.from('category_limits').upsert({ category: categoryId, amount: value })
+    }
   }, [])
 
   return { limits, setLimit }

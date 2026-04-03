@@ -1,43 +1,14 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { Expense, CategoryId } from '../types'
-
-function getStorageKey(year: number, month: number): string {
-  return `vics-expenses-${year}-${String(month).padStart(2, '0')}`
-}
+import { supabase } from '../lib/supabase'
 
 function getCurrentMonth(): { year: number; month: number } {
   const now = new Date()
   return { year: now.getFullYear(), month: now.getMonth() + 1 }
 }
 
-function loadExpenses(year: number, month: number): Expense[] {
-  try {
-    const data = localStorage.getItem(getStorageKey(year, month))
-    return data ? JSON.parse(data) : []
-  } catch {
-    return []
-  }
-}
-
-function saveExpenses(expenses: Expense[], year: number, month: number): void {
-  localStorage.setItem(getStorageKey(year, month), JSON.stringify(expenses))
-}
-
-export function getAvailableMonths(): { year: number; month: number }[] {
-  const months: { year: number; month: number }[] = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (!key?.startsWith('vics-expenses-')) continue
-    const match = key.match(/^vics-expenses-(\d{4})-(\d{2})$/)
-    if (match) {
-      months.push({ year: parseInt(match[1]), month: parseInt(match[2]) })
-    }
-  }
-  const current = getCurrentMonth()
-  if (!months.some(m => m.year === current.year && m.month === current.month)) {
-    months.push(current)
-  }
-  return months.sort((a, b) => b.year - a.year || b.month - a.month)
+function toMonthKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`
 }
 
 export function useExpenses(selectedYear?: number, selectedMonth?: number) {
@@ -45,15 +16,31 @@ export function useExpenses(selectedYear?: number, selectedMonth?: number) {
   const year = selectedYear ?? current.year
   const month = selectedMonth ?? current.month
   const isCurrentMonth = year === current.year && month === current.month
+  const monthKey = toMonthKey(year, month)
 
-  const [expenses, setExpenses] = useState<Expense[]>(() => loadExpenses(year, month))
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Reload when month changes
+  // Load expenses from Supabase
   useEffect(() => {
-    setExpenses(loadExpenses(year, month))
-  }, [year, month])
+    setLoading(true)
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('month_key', monthKey)
+      .order('date', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error loading expenses:', error)
+          setExpenses([])
+        } else {
+          setExpenses(data || [])
+        }
+        setLoading(false)
+      })
+  }, [monthKey])
 
-  const addExpense = useCallback((amount: number, category: CategoryId, description: string) => {
+  const addExpense = useCallback(async (amount: number, category: CategoryId, description: string) => {
     const expense: Expense = {
       id: crypto.randomUUID(),
       amount,
@@ -61,25 +48,48 @@ export function useExpenses(selectedYear?: number, selectedMonth?: number) {
       description,
       date: new Date().toISOString(),
     }
-    setExpenses(prev => {
-      const next = [expense, ...prev]
-      saveExpenses(next, year, month)
-      return next
-    })
-  }, [year, month])
 
-  const removeExpense = useCallback((id: string) => {
-    setExpenses(prev => {
-      const next = prev.filter(e => e.id !== id)
-      saveExpenses(next, year, month)
-      return next
-    })
-  }, [year, month])
+    // Optimistic update
+    setExpenses(prev => [{ ...expense, month_key: monthKey } as Expense, ...prev])
 
-  const resetMonth = useCallback(() => {
-    localStorage.removeItem(getStorageKey(year, month))
+    const { error } = await supabase.from('expenses').insert({
+      id: expense.id,
+      amount: expense.amount,
+      category: expense.category,
+      description: expense.description,
+      date: expense.date,
+      month_key: monthKey,
+    })
+
+    if (error) {
+      console.error('Error adding expense:', error)
+      // Rollback
+      setExpenses(prev => prev.filter(e => e.id !== expense.id))
+    }
+  }, [monthKey])
+
+  const removeExpense = useCallback(async (id: string) => {
+    const prev = expenses
+    // Optimistic update
+    setExpenses(p => p.filter(e => e.id !== id))
+
+    const { error } = await supabase.from('expenses').delete().eq('id', id)
+
+    if (error) {
+      console.error('Error removing expense:', error)
+      setExpenses(prev)
+    }
+  }, [expenses])
+
+  const resetMonth = useCallback(async () => {
     setExpenses([])
-  }, [year, month])
+
+    const { error } = await supabase.from('expenses').delete().eq('month_key', monthKey)
+
+    if (error) {
+      console.error('Error resetting month:', error)
+    }
+  }, [monthKey])
 
   const totalSpent = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses])
 
@@ -91,5 +101,5 @@ export function useExpenses(selectedYear?: number, selectedMonth?: number) {
     return map
   }, [expenses])
 
-  return { expenses, addExpense, removeExpense, resetMonth, totalSpent, spentByCategory, isCurrentMonth }
+  return { expenses, addExpense, removeExpense, resetMonth, totalSpent, spentByCategory, isCurrentMonth, loading }
 }

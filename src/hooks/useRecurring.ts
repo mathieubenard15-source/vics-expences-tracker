@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { CategoryId } from '../types'
+import { supabase } from '../lib/supabase'
 
 export interface RecurringExpense {
   id: string
@@ -8,44 +9,46 @@ export interface RecurringExpense {
   description: string
 }
 
-const STORAGE_KEY = 'vics-recurring-expenses'
-
-function load(): RecurringExpense[] {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY)
-    return data ? JSON.parse(data) : []
-  } catch {
-    return []
-  }
-}
-
-function save(items: RecurringExpense[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-}
-
 export function useRecurring() {
-  const [recurring, setRecurring] = useState<RecurringExpense[]>(load)
+  const [recurring, setRecurring] = useState<RecurringExpense[]>([])
 
-  const addRecurring = useCallback((amount: number, category: CategoryId, description: string) => {
+  useEffect(() => {
+    supabase
+      .from('recurring_expenses')
+      .select('*')
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error loading recurring:', error)
+          return
+        }
+        setRecurring(data || [])
+      })
+  }, [])
+
+  const addRecurring = useCallback(async (amount: number, category: CategoryId, description: string) => {
     const item: RecurringExpense = {
       id: crypto.randomUUID(),
       amount,
       category,
       description,
     }
-    setRecurring(prev => {
-      const next = [...prev, item]
-      save(next)
-      return next
-    })
+
+    setRecurring(prev => [...prev, item])
+
+    const { error } = await supabase.from('recurring_expenses').insert(item)
+    if (error) {
+      console.error('Error adding recurring:', error)
+      setRecurring(prev => prev.filter(r => r.id !== item.id))
+    }
   }, [])
 
-  const removeRecurring = useCallback((id: string) => {
-    setRecurring(prev => {
-      const next = prev.filter(r => r.id !== id)
-      save(next)
-      return next
-    })
+  const removeRecurring = useCallback(async (id: string) => {
+    setRecurring(prev => prev.filter(r => r.id !== id))
+
+    const { error } = await supabase.from('recurring_expenses').delete().eq('id', id)
+    if (error) {
+      console.error('Error removing recurring:', error)
+    }
   }, [])
 
   return { recurring, addRecurring, removeRecurring }
