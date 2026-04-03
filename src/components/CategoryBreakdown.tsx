@@ -15,7 +15,7 @@ export function CategoryBreakdown({ spentByCategory, limits, onSetLimit }: Props
   const allCats = CATEGORIES.map(cat => ({
     ...cat,
     spent: spentByCategory[cat.id] || 0,
-    limit: limits[cat.id],
+    limit: limits?.[cat.id],
   }))
 
   const catsWithData = allCats.filter(c => c.spent > 0 || c.limit)

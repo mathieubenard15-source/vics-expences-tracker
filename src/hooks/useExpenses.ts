@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { Expense, CategoryId } from '../types'
 
 function getStorageKey(year: number, month: number): string {
@@ -49,12 +49,9 @@ export function useExpenses(selectedYear?: number, selectedMonth?: number) {
   const [expenses, setExpenses] = useState<Expense[]>(() => loadExpenses(year, month))
 
   // Reload when month changes
-  const [loadedKey, setLoadedKey] = useState(`${year}-${month}`)
-  const currentKey = `${year}-${month}`
-  if (currentKey !== loadedKey) {
+  useEffect(() => {
     setExpenses(loadExpenses(year, month))
-    setLoadedKey(currentKey)
-  }
+  }, [year, month])
 
   const addExpense = useCallback((amount: number, category: CategoryId, description: string) => {
     const expense: Expense = {

@@ -22,7 +22,7 @@ export function MascotAlert({ totalSpent, spentByCategory, limits }: Props) {
   const mascot = getMascotState(pct)
 
   const overLimitCats = CATEGORIES.filter(cat => {
-    const limit = limits[cat.id]
+    const limit = limits?.[cat.id]
     return limit && (spentByCategory[cat.id] || 0) > limit
   })
 
